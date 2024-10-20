@@ -1,79 +1,62 @@
 package paginacion;
 
-import java.util.HashMap;
-import java.util.Map;
-
 public class SimuladorMemoria {
+    private final String[] marcos;       // Representa los marcos de la memoria
+    private final boolean[] referenciado;  // Bits de referencia
+    private final boolean[] modificado;    // Bits de modificación
 
-    private Map<Integer, int[]> memoria;
-
-    public SimuladorMemoria(int marcosDePagina) {
-        memoria = new HashMap<>();
-        inicializarMemoria(marcosDePagina);
+    // Constructor para inicializar la memoria con un número de marcos de página
+    public SimuladorMemoria(int cantidadMarcos) {
+        marcos = new String[cantidadMarcos];
+        referenciado = new boolean[cantidadMarcos];
+        modificado = new boolean[cantidadMarcos];
     }
 
-    private void inicializarMemoria(int marcosDePagina) {
-        for (int i = 0; i < marcosDePagina; i++) {
-            memoria.put(i, new int[]{-1, 0, 0});
-        }
+    // Método para insertar un mensaje en un marco específico
+    public synchronized void insertar(int posicion, String[] mensaje) {
+        marcos[posicion] = mensaje[0];
+        referenciado[posicion] = true;
+        modificado[posicion] = mensaje[3].equals("W");  // Marca si se modificó
     }
 
-    public int obtenerMarcoLibre() {
-        for (int i = 0; i < memoria.size(); i++) {
-            if (memoria.get(i)[0] == -1) {
+    // Método para leer el contenido de un marco en una posición específica
+    public synchronized String leer(int posicion) {
+        return marcos[posicion];
+    }
+
+    // Algoritmo NRU para seleccionar la página a reemplazar
+    public synchronized int paginaReemplazable() {
+        // (1) No referenciada, no modificada
+        for (int i = 0; i < marcos.length; i++) {
+            if (!referenciado[i] && !modificado[i]) {
                 return i;
             }
         }
-        return -1;
-    }
-
-    public synchronized int[] realizarSwap(int paginaVirtual, int operacion) {
-        int marcoParaRemover = seleccionarMarcoParaSwap();
-        int[] datosMarcoRemovido = memoria.get(marcoParaRemover);
-
-        int[] nuevaPagina = {paginaVirtual, 1, operacion};
-        memoria.put(marcoParaRemover, nuevaPagina);
-
-        System.out.println("Removiendo el marco #" + marcoParaRemover + 
-                   " | Página virtual: " + datosMarcoRemovido[0] + 
-                   " | Bit de referencia: " + datosMarcoRemovido[1] + 
-                   " | Bit de escritura: " + datosMarcoRemovido[2]);
-
-
-        return new int[]{marcoParaRemover, datosMarcoRemovido[0]};
-    }
-
-    public synchronized void asignarMarco(int marcoLibre, int pagina, int tipoOperacion) {
-        memoria.put(marcoLibre, new int[]{pagina, 1, tipoOperacion});
-    }
-
-    public synchronized int seleccionarMarcoParaSwap() {
-        int marcoOptimo = 0;
-        int menorReferencia = memoria.get(0)[1];
-        int menorEscritura = memoria.get(0)[2];
-
-        for (int i = 1; i < memoria.size(); i++) {
-            int[] marcoActual = memoria.get(i);
-
-            if (marcoActual[1] < menorReferencia || (marcoActual[1] == menorReferencia && marcoActual[2] < menorEscritura)) {
-                marcoOptimo = i;
-                menorReferencia = marcoActual[1];
-                menorEscritura = marcoActual[2];
+        // (2) No referenciada, modificada
+        for (int i = 0; i < marcos.length; i++) {
+            if (!referenciado[i] && modificado[i]) {
+                return i;
             }
         }
-
-        return marcoOptimo;
-    }
-
-    public synchronized void refrescarBitsReferencia() {
-        for (int indice : memoria.keySet()) {
-            int[] marco = memoria.get(indice);
-            memoria.put(indice, new int[]{marco[0], 0, marco[2]});
+        // (3) Referenciada, no modificada
+        for (int i = 0; i < marcos.length; i++) {
+            if (referenciado[i] && !modificado[i]) {
+                return i;
+            }
         }
+        // (4) Referenciada, modificada
+        for (int i = 0; i < marcos.length; i++) {
+            if (referenciado[i] && modificado[i]) {
+                return i;
+            }
+        }
+        return -1;  // Si no se encuentra ninguna página para reemplazar
     }
 
-    public synchronized void consultarMarco(int marco) {
-        int[] datosMarco = memoria.get(marco);
-        memoria.put(marco, new int[]{datosMarco[0], 1, datosMarco[2]});
+    // Limpia los bits de referencia (los pone a falso)
+    public synchronized void limpiarBitsReferencia() {
+        for (int i = 0; i < referenciado.length; i++) {
+            referenciado[i] = false;
+        }
     }
 }
