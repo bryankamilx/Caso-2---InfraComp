@@ -128,6 +128,17 @@ public class Main {
             String nombreArchivoSalida = lectorEntrada.readLine();
             PrintWriter escritor = new PrintWriter(nombreArchivoSalida);
     
+            int l = imagen.leerLongitud();
+            String cadena = String.valueOf(l);
+            try (PrintWriter writer = new PrintWriter(cadena)) {
+                writer.write(mensaje);
+                System.out.println("El mensaje ha sido recuperado y guardado en " + cadena);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            
+
+
             escritor.println("P=" + tamanoPagina);
             escritor.println("NF=" + altoImagen);
             escritor.println("NC=" + anchoImagen);
