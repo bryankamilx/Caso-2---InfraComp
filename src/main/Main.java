@@ -2,6 +2,7 @@ package main;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -59,63 +60,106 @@ public class Main {
         System.out.print("Seleccione una opción: ");
     }
 
+
+    // Método para leer el archivo de texto y devolver la longitud del mensaje
+    public int leerArchivoTexto(String rutaArchivo) {
+        int longitud = 0;
+        try {
+            BufferedReader lector = new BufferedReader(new FileReader(rutaArchivo));
+            while (lector.read() != -1) {
+                longitud++;
+            }
+            lector.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return longitud;
+    }
+
+    // Método para leer el archivo de texto y devolver su contenido como un arreglo de chars
+    public char[] leerMensaje(String rutaArchivo, int longitud) throws Exception {
+        BufferedReader lector = new BufferedReader(new FileReader(rutaArchivo));
+        char[] mensaje = new char[longitud];
+        lector.read(mensaje);
+        lector.close();
+        return mensaje;
+    }
+
+
     public void generarReferenciasPaginas() {
         try {
             BufferedReader lectorEntrada = new BufferedReader(new InputStreamReader(System.in));
-
+    
             System.out.print("Especifique el tamaño de la página en bytes: ");
             int tamanoPagina = Integer.parseInt(lectorEntrada.readLine());
-
+    
             System.out.print("Especifique la ruta del archivo de imagen: ");
             String rutaImagen = lectorEntrada.readLine();
-
+    
+            // Cargar la imagen
             Imagen imagen = new Imagen(rutaImagen);
-
             int altoImagen = imagen.alto;
             int anchoImagen = imagen.ancho;
-
-            int longitudMensaje = imagen.leerLongitud();
+    
+            // Leer el archivo de mensaje
+            System.out.print("Especifique la ruta del archivo con el mensaje: ");
+            String rutaMensaje = lectorEntrada.readLine();
+            int longitudMensaje = leerArchivoTexto(rutaMensaje);
+    
+            // Nota: Aquí debes pasar la longitud del mensaje, no el ancho de la imagen
+            char[] mensaje = leerMensaje(rutaMensaje, longitudMensaje);
+    
+            // Esconder el mensaje en la imagen
+            imagen.esconder(mensaje, longitudMensaje);
+    
+            // Guardar la imagen modificada
+            System.out.print("Especifique la ruta de la imagen modificada: ");
+            String imagenBmp = lectorEntrada.readLine();
+            imagen.escribirImagen(imagenBmp);
+    
+            // Generación de referencias
             int totalReferencias = (longitudMensaje * 8 * 2) + 16 + longitudMensaje;
-
+    
             double paginasImagen = Math.ceil((double) (altoImagen * anchoImagen * 3) / tamanoPagina);
             double paginasMensaje = Math.ceil((double) longitudMensaje / tamanoPagina);
             int paginasTotales = (int) paginasImagen + (int) paginasMensaje;
-
+    
             System.out.print("Especifique el nombre del archivo de salida: ");
             String nombreArchivoSalida = lectorEntrada.readLine();
             PrintWriter escritor = new PrintWriter(nombreArchivoSalida);
-
+    
             escritor.println("P=" + tamanoPagina);
             escritor.println("NF=" + altoImagen);
             escritor.println("NC=" + anchoImagen);
             escritor.println("NR=" + totalReferencias);
             escritor.println("NP=" + paginasTotales);
-
+    
             int fila = 0, columna = 0, indiceColor = 0, pagina = 0, paginaMensaje = pagina + (int) paginasImagen;
             int desplazamiento = 0, desplazamientoMensaje = 0;
             String[] colores = {"R", "G", "B"};
-
+    
+            // Lógica para generar las referencias
             for (int i = 0; i < 16; i++) {
                 escritor.println("Imagen[" + fila + "][" + columna + "]." + colores[indiceColor] + "," + pagina + "," + desplazamiento + ",R");
                 indiceColor++;
                 desplazamiento++;
-
+    
                 if (fila >= altoImagen) fila = 0;
                 if (indiceColor >= 3) { columna++; indiceColor = 0; }
                 if (columna >= anchoImagen) { columna = 0; fila++; }
                 if (desplazamiento >= tamanoPagina) { desplazamiento = 0; pagina++; }
             }
-
+    
             for (int i = 0; i < longitudMensaje; i++) {
                 escritor.println("Mensaje[" + i + "]," + paginaMensaje + "," + desplazamientoMensaje + ",W");
-
+    
                 for (int j = 0; j < 8; j++) {
                     escritor.println("Imagen[" + fila + "][" + columna + "]." + colores[indiceColor] + "," + pagina + "," + desplazamiento + ",R");
                     escritor.println("Mensaje[" + i + "]," + paginaMensaje + "," + desplazamientoMensaje + ",W");
-
+    
                     indiceColor++;
                     desplazamiento++;
-
+    
                     if (desplazamiento >= tamanoPagina) { desplazamiento = 0; pagina++; }
                     if (indiceColor >= 3) { columna++; indiceColor = 0; }
                     if (columna >= anchoImagen) { columna = 0; fila++; }
@@ -125,11 +169,12 @@ public class Main {
                 if (desplazamientoMensaje >= tamanoPagina) { desplazamientoMensaje = 0; paginaMensaje++; }
             }
             escritor.close();
-
+    
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+    
 
     public void calcularEstadisticasPaginacion() {
         try {
