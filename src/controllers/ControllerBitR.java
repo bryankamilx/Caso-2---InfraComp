@@ -3,30 +3,30 @@ package controllers;
 import paginacion.SimuladorMemoria;
 
 public class ControllerBitR extends Thread {
+    private final SimuladorMemoria memoria;
+    private boolean terminado;
 
-    private SimuladorMemoria memoriaFisica;
-
-    public ControllerBitR(SimuladorMemoria memoriaFisica) {
-        this.memoriaFisica = memoriaFisica;
+    // Constructor que inicializa la memoria
+    public ControllerBitR(SimuladorMemoria memoria) {
+        this.memoria = memoria;
+        this.terminado = false;
     }
 
+    // Método que se ejecuta cuando el hilo inicia
     @Override
     public void run() {
-        while (true) {
-            actualizarBitsReferencia();
-            esperarActualizacion();
-        }
-    }
-
-    private void actualizarBitsReferencia() {
-        memoriaFisica.refrescarBitsReferencia();
-    }
-
-    private void esperarActualizacion() {
         try {
-            Thread.sleep(2);
+            while (!terminado) {
+                Thread.sleep(2);  // Espera 2 ms
+                memoria.limpiarBitsReferencia();  // Limpia los bits de referencia
+            }
         } catch (InterruptedException e) {
-            System.out.println("El controlador principal ha finalizado y ha interrumpido el controlador de bits de referencia para concluir su tarea.");
+            System.out.println("Error al detener el HiloBitR");
         }
+    }
+
+    // Método para detener el hilo
+    public void detenerHilo() {
+        terminado = true;
     }
 }

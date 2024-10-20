@@ -1,200 +1,225 @@
 package main;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.List;
+import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.InputMismatchException;
 import java.util.Scanner;
 
 import controllers.Controller;
 import controllers.ControllerBitR;
-import paginacion.Contador;
-import paginacion.Imagen;
-import paginacion.SimuladorMemoria;
-import paginacion.TablaDePaginas;
+import paginacion.*;
 
 public class Main {
 
-    public Main() {}
+    // Parámetros de configuración
+    private static int tamanoPagina; // en bytes
+    private static String nombreArchivo;
 
-    public static void main(String[] args) {
-        Main instanciaApp = new Main();
-        instanciaApp.ejecutarPrograma();
-    }
+    // Atributos relacionados a la imagen y mensaje
+    private static Imagen imagen;
+    private static int longitudMensaje;
+    private static int numReferencias;
+    private static int numPaginas;
+    private static int numMarcosPagina;
 
-    public void ejecutarPrograma() {
-        mostrarMenu();
+    // Herramientas de entrada
+    private static Scanner scanner;
+    private static BufferedReader lector;
+
+    public static void main(String[] args) throws Exception {
+        int resultado = (86189) / 256;
+        System.out.println("Revisión: " + resultado);
+        scanner = new Scanner(System.in);
         try {
-            BufferedReader lectorEntrada = new BufferedReader(new InputStreamReader(System.in));
-            int opcionSeleccionada = Integer.parseInt(lectorEntrada.readLine());
+            boolean terminado = false;
+            while (!terminado) {
+                System.out.println("\nSelecciona una opción:");
+                System.out.println("1. Generar referencias");
+                System.out.println("2. Calcular datos");
 
-            while (opcionSeleccionada != 0) {
-                switch (opcionSeleccionada) {
-                    case 1:
-                        generarReferenciasPaginas();
+                String opcion = scanner.next();
+                switch (opcion) {
+                    case "1":
+                        generarReferencias();
                         break;
-                    case 2:
-                        calcularEstadisticasPaginacion();
+                    case "2":
+                        calcularDatos();
+                        terminado = true;
                         break;
                     default:
-                        System.out.println("Opción inválida, por favor intente nuevamente.");
-                        break;
+                        System.out.println("Opción inválida, intenta de nuevo.");
                 }
-                mostrarMenu();
-                opcionSeleccionada = Integer.parseInt(lectorEntrada.readLine());
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } finally {
+            System.out.println("\nPrograma finalizado.");
+            scanner.close();
         }
-        System.out.println("Saliendo del programa...");
     }
 
-    public void mostrarMenu() {
-        System.out.println("\n---- Menú Principal ----");
-        System.out.println("1. Generar referencias de páginas");
-        System.out.println("2. Calcular estadísticas de paginación");
-        System.out.println("0. Salir");
-        System.out.print("Seleccione una opción: ");
-    }
+    private static void generarReferencias() {
+        pedirDatosOpcion1();
+        imagen = new Imagen(nombreArchivo + ".bmp");
+        longitudMensaje = imagen.leerLongitud();
+        System.out.println("Longitud del mensaje: " + longitudMensaje);
 
-    public void generarReferenciasPaginas() {
+        numReferencias = 16 + 17 * longitudMensaje;
+        numPaginas = (3 * imagen.ancho * imagen.alto + longitudMensaje + tamanoPagina - 1) / tamanoPagina;
+
         try {
-            BufferedReader lectorEntrada = new BufferedReader(new InputStreamReader(System.in));
+            FileWriter fileWriter = new FileWriter("output_" + nombreArchivo + ".txt");
+            BufferedWriter writer = new BufferedWriter(fileWriter);
 
-            System.out.print("Especifique el tamaño de la página en bytes: ");
-            int tamanoPagina = Integer.parseInt(lectorEntrada.readLine());
+            writer.write("P=" + tamanoPagina);
+            writer.newLine();
+            writer.write("NF=" + imagen.alto);
+            writer.newLine();
+            writer.write("NC=" + imagen.ancho);
+            writer.newLine();
+            writer.write("NR=" + numReferencias);
+            writer.newLine();
+            writer.write("NP=" + numPaginas);
+            writer.newLine();
 
-            System.out.print("Especifique la ruta del archivo de imagen: ");
-            String rutaImagen = lectorEntrada.readLine();
-
-            Imagen imagen = new Imagen(rutaImagen);
-
-            int altoImagen = imagen.alto;
-            int anchoImagen = imagen.ancho;
-
-            int longitudMensaje = imagen.leerLongitud();
-            int totalReferencias = (longitudMensaje * 8 * 2) + 16 + longitudMensaje;
-
-            double paginasImagen = Math.ceil((double) (altoImagen * anchoImagen * 3) / tamanoPagina);
-            double paginasMensaje = Math.ceil((double) longitudMensaje / tamanoPagina);
-            int paginasTotales = (int) paginasImagen + (int) paginasMensaje;
-
-            System.out.print("Especifique el nombre del archivo de salida: ");
-            String nombreArchivoSalida = lectorEntrada.readLine();
-            PrintWriter escritor = new PrintWriter(nombreArchivoSalida);
-
-            escritor.println("P=" + tamanoPagina);
-            escritor.println("NF=" + altoImagen);
-            escritor.println("NC=" + anchoImagen);
-            escritor.println("NR=" + totalReferencias);
-            escritor.println("NP=" + paginasTotales);
-
-            int fila = 0, columna = 0, indiceColor = 0, pagina = 0, paginaMensaje = pagina + (int) paginasImagen;
-            int desplazamiento = 0, desplazamientoMensaje = 0;
+            int columna = 0;
             String[] colores = {"R", "G", "B"};
+            int desplazamiento = 0;
 
+            // Generar referencias de la imagen
             for (int i = 0; i < 16; i++) {
-                escritor.println("Imagen[" + fila + "][" + columna + "]." + colores[indiceColor] + "," + pagina + "," + desplazamiento + ",R");
-                indiceColor++;
-                desplazamiento++;
-
-                if (fila >= altoImagen) fila = 0;
-                if (indiceColor >= 3) { columna++; indiceColor = 0; }
-                if (columna >= anchoImagen) { columna = 0; fila++; }
-                if (desplazamiento >= tamanoPagina) { desplazamiento = 0; pagina++; }
-            }
-
-            for (int i = 0; i < longitudMensaje; i++) {
-                escritor.println("Mensaje[" + i + "]," + paginaMensaje + "," + desplazamientoMensaje + ",W");
-
-                for (int j = 0; j < 8; j++) {
-                    escritor.println("Imagen[" + fila + "][" + columna + "]." + colores[indiceColor] + "," + pagina + "," + desplazamiento + ",R");
-                    escritor.println("Mensaje[" + i + "]," + paginaMensaje + "," + desplazamientoMensaje + ",W");
-
-                    indiceColor++;
-                    desplazamiento++;
-
-                    if (desplazamiento >= tamanoPagina) { desplazamiento = 0; pagina++; }
-                    if (indiceColor >= 3) { columna++; indiceColor = 0; }
-                    if (columna >= anchoImagen) { columna = 0; fila++; }
-                    if (fila >= altoImagen) fila = 0;
+                String color = colores[i % 3];
+                if (i % 3 == 0 && i != 0) {
+                    columna++;
                 }
-                desplazamientoMensaje++;
-                if (desplazamientoMensaje >= tamanoPagina) { desplazamientoMensaje = 0; paginaMensaje++; }
+                writer.write("Imagen[0][" + columna + "]." + color + ",0," + desplazamiento + ",R");
+                writer.newLine();
+                desplazamiento++;
             }
-            escritor.close();
 
-        } catch (Exception e) {
-            e.printStackTrace();
+            int fila = 0;
+            int pagina = 0;
+            int posicionMensaje = 0;
+            int paginaMensaje = (3 * imagen.ancho * imagen.alto + tamanoPagina - 1) / tamanoPagina;
+
+            boolean sigueMensaje = false;
+
+            // Generar referencias del mensaje
+            for (int i = 16; i < numReferencias; i++) {
+                writer.write("Mensaje[" + posicionMensaje + "]," + paginaMensaje + "," + desplazamiento + ",W");
+                writer.newLine();
+
+                for (int j = 0; j < 16; j++) {
+                    if (sigueMensaje) {
+                        writer.write("Mensaje[" + posicionMensaje + "]," + paginaMensaje + "," + desplazamiento + ",W");
+                        if (i != numReferencias - 1) {
+                            writer.newLine();
+                        }
+                        sigueMensaje = false;
+                    } else {
+                        String color = colores[i % 3];
+                        if (i % 3 == 0) {
+                            columna++;
+                            if (columna >= imagen.ancho) {
+                                fila++;
+                                columna = 0;
+                            }
+                        }
+                        writer.write("Imagen[" + fila + "][" + columna + "]." + color + "," + pagina + "," + desplazamiento + ",R");
+                        writer.newLine();
+                        desplazamiento++;
+                        if (desplazamiento >= tamanoPagina) {
+                            pagina++;
+                            desplazamiento = 0;
+                        }
+                        sigueMensaje = true;
+                    }
+                }
+                posicionMensaje++;
+                if (posicionMensaje >= tamanoPagina) {
+                    posicionMensaje = 0;
+                    paginaMensaje++;
+                }
+            }
+            writer.close();
+            System.out.println("Archivo generado exitosamente.");
+        } catch (IOException e) {
+            System.out.println("Error al escribir el archivo.");
         }
     }
 
-    public void calcularEstadisticasPaginacion() {
-        try {
-            BufferedReader lectorEntrada = new BufferedReader(new InputStreamReader(System.in));
-
-            System.out.print("Indique la ruta del archivo de referencias: ");
-            String rutaArchivoReferencias = lectorEntrada.readLine();
-            
-            System.out.print("Especifique el número de marcos de página: ");
-            int numMarcos = Integer.parseInt(lectorEntrada.readLine());
-
-            File archivo = new File(rutaArchivoReferencias);
-            Scanner lectorArchivo = new Scanner(archivo);
-            List<int[]> listaReferencias = new ArrayList<>();
-
-            int tamanoPagina = Integer.parseInt(lectorArchivo.nextLine().split("=")[1]);
-            int numFilasImagen = Integer.parseInt(lectorArchivo.nextLine().split("=")[1]);
-            int numColumnasImagen = Integer.parseInt(lectorArchivo.nextLine().split("=")[1]);
-            int totalReferencias = Integer.parseInt(lectorArchivo.nextLine().split("=")[1]);
-            int paginasTotales = Integer.parseInt(lectorArchivo.nextLine().split("=")[1]);
-
-            TablaDePaginas tablaSwap = new TablaDePaginas(paginasTotales);
-            TablaDePaginas tablaReal = new TablaDePaginas(paginasTotales);
-            tablaSwap.llenarTablaConIndices();
-
-            SimuladorMemoria simuladorMemoria = new SimuladorMemoria(numMarcos);
-            Contador contadorHitsMisses = new Contador();
-
-            while (lectorArchivo.hasNextLine()) {
-                String[] linea = lectorArchivo.nextLine().split(",");
-                int[] datosReferencia = new int[3];
-                datosReferencia[0] = Integer.parseInt(linea[1]);
-                datosReferencia[1] = Integer.parseInt(linea[2]);
-                datosReferencia[2] = linea[3].equals("R") ? 0 : 1;
-                listaReferencias.add(datosReferencia);
+    private static void pedirDatosOpcion1() {
+        System.out.println("--> Generar referencias");
+        boolean entradaValida = false;
+        while (!entradaValida) {
+            try {
+                System.out.print("Ingrese el tamaño de página (en bytes): ");
+                tamanoPagina = scanner.nextInt();
+                entradaValida = true;
+            } catch (InputMismatchException e) {
+                System.out.println("Entrada no válida. Por favor, ingrese un número entero.");
+                scanner.next();
             }
-
-            Controller controladorPaginas = new Controller(tablaSwap, tablaReal, listaReferencias, simuladorMemoria, contadorHitsMisses);
-            ControllerBitR actualizadorBits = new ControllerBitR(simuladorMemoria);
-
-            lectorArchivo.close();
-
-            controladorPaginas.start();
-            actualizadorBits.start();
-
-            controladorPaginas.join();
-            actualizadorBits.interrupt();
-
-            System.out.println("Resultados de la simulación:");
-            System.out.printf("Tamaño de la página: %d bytes\n", tamanoPagina);
-            System.out.printf("Marcos de página asignados: %d\n", numMarcos);
-            System.out.printf("Total de referencias: %d\n", totalReferencias);
-            System.out.printf("Número de aciertos (hits): %d\n", contadorHitsMisses.getHits());
-            System.out.printf("Número de fallas (misses): %d\n", contadorHitsMisses.getMiss());
-
-            double tiempoHit = 0.000025;
-            double tiempoSwap = 10.0;
-            double tiempoTotalHits = tiempoHit * contadorHitsMisses.getHits();
-            double tiempoTotalMisses = (contadorHitsMisses.getMiss() * tiempoSwap) + (contadorHitsMisses.getMiss() * tiempoHit);
-            double tiempoTotal = tiempoTotalHits + tiempoTotalMisses;
-
-            System.out.printf("Tiempo total para la simulación: %.4f ms\n", tiempoTotal);
-
-        } catch (Exception e) {
-            e.printStackTrace();
         }
+        System.out.print("Ingrese el nombre del archivo BMP (sin la extensión .bmp): ");
+        nombreArchivo = scanner.next();
+        System.out.println("El archivo de salida será 'output_" + nombreArchivo + ".txt'.");
+    }
+
+    private static void calcularDatos() {
+        pedirDatosOpcion2();
+        try {
+            String linea = lector.readLine();
+            tamanoPagina = Integer.parseInt(linea.substring(2));
+            lector.readLine(); 
+            lector.readLine();
+            linea = lector.readLine();
+            numReferencias = Integer.parseInt(linea.substring(3));
+            linea = lector.readLine();
+            numPaginas = Integer.parseInt(linea.substring(3));
+
+            SimuladorMemoria memoria = new SimuladorMemoria(numMarcosPagina);
+            TablaDePaginas tablaPaginas = new TablaDePaginas(numReferencias);
+            ControllerBitR hiloBitR = new ControllerBitR(memoria);
+            Controller hiloRAM = new Controller(memoria, lector, tablaPaginas, hiloBitR);
+
+            hiloRAM.start();
+            hiloBitR.start();
+            hiloRAM.join();
+            System.out.println("Fallos de página: " + tablaPaginas.obtenerFallosPagina());
+            System.out.println("Aciertos (hits): " + tablaPaginas.obtenerAciertos());
+        } catch (IOException | InterruptedException e) {
+            System.out.println("Error al procesar los datos.");
+        }
+        
+    }
+
+    private static void pedirDatosOpcion2() {
+        System.out.println("--> Calcular datos");
+        boolean entradaValida = false;
+        while (!entradaValida) {
+            try {
+                System.out.print("Ingrese el número de marcos de página: ");
+                numMarcosPagina = scanner.nextInt();
+                entradaValida = true;
+            } catch (InputMismatchException e) {
+                System.out.println("Entrada no válida. Por favor, ingrese un número entero.");
+                scanner.next();
+            }
+        }
+        entradaValida = false;
+        while (!entradaValida) {
+            try {
+                System.out.print("Ingrese el nombre del archivo de referencias (sin la extensión .txt): ");
+                nombreArchivo = scanner.next();
+                lector = new BufferedReader(new FileReader(nombreArchivo + ".txt"));
+                entradaValida = true;
+            } catch (FileNotFoundException e) {
+                System.out.println("Archivo no encontrado, inténtelo de nuevo.");
+            }
+        }
+        System.out.println("\nProcesando, por favor espere...");
     }
 }

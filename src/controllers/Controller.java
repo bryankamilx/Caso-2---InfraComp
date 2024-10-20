@@ -1,82 +1,51 @@
 package controllers;
 
-import java.util.List;
-import paginacion.Contador;
-import paginacion.SimuladorMemoria;
-import paginacion.TablaDePaginas;
+import java.io.BufferedReader;
+import java.io.IOException;
+import paginacion.*;
 
 public class Controller extends Thread {
 
-    private TablaDePaginas tablaIntercambio;
-    private TablaDePaginas tablaPrincipal;
-    private List<int[]> listaInstrucciones;
-    private SimuladorMemoria memoriaFisica;
-    private Contador contadorHitsMisses;
+    private final SimuladorMemoria memoria;
+    private final BufferedReader lector;
+    private final TablaDePaginas tablaPaginas;
+    private final ControllerBitR hiloBitR;
 
-    public Controller(TablaDePaginas tablaIntercambio, TablaDePaginas tablaPrincipal, List<int[]> listaInstrucciones, SimuladorMemoria memoriaFisica, Contador contadorHitsMisses) {
-        this.tablaPrincipal = tablaPrincipal;
-        this.tablaIntercambio = tablaIntercambio;
-        this.listaInstrucciones = listaInstrucciones;
-        this.memoriaFisica = memoriaFisica;
-        this.contadorHitsMisses = contadorHitsMisses;
+    // Constructor que inicializa los objetos de memoria, lector, tabla de páginas y el hilo de bits de referencia
+    public Controller(SimuladorMemoria memoria, BufferedReader lector, TablaDePaginas tablaPaginas, ControllerBitR hiloBitR) {
+        this.memoria = memoria;
+        this.lector = lector;
+        this.tablaPaginas = tablaPaginas;
+        this.hiloBitR = hiloBitR;
     }
 
+    // Método principal que se ejecuta cuando el hilo inicia
     @Override
     public void run() {
-        for (int[] instruccion : listaInstrucciones) {
-            int pagina = instruccion[0];
-            int tipoOperacion = instruccion[2];
+        try {
+            for (int i = 0; i < tablaPaginas.obtenerTamaño(); i++) {
+                Thread.sleep(1);  // Pausa de 1 ms
+                String linea = lector.readLine();  // Lee la línea del archivo
+                String[] partes = linea.split(",");
+                int paginaVirtual = Integer.parseInt(partes[1]);
 
-            if (esFalloDePagina(pagina)) {
-                manejarFalloDePagina(pagina, tipoOperacion);
-            } else {
-                memoriaFisica.consultarMarco(tablaPrincipal.obtenerEstadoPagina(pagina));
-                contadorHitsMisses.addHit();
+                // Verifica si la página está en la tabla de páginas
+                int resultadoTabla = tablaPaginas.buscarPaginaVirtual(paginaVirtual);
+
+                // Si la página no está en la tabla de páginas
+                if (resultadoTabla == -1) {
+                    int paginaReal = memoria.paginaReemplazable();  // Busca una página para reemplazar
+                    memoria.insertar(paginaReal, partes);  // Inserta la página en la memoria
+                    tablaPaginas.insertar(paginaVirtual, paginaReal);  // Actualiza la tabla de páginas
+                }
+                // Si la página está en la tabla, no se hace nada
             }
 
-            pausarEjecucion();
-        }
-    }
-
-    private boolean esFalloDePagina(int pagina) {
-        return tablaPrincipal.obtenerEstadoPagina(pagina) == -1;
-    }
-
-    private void manejarFalloDePagina(int pagina, int tipoOperacion) {
-        contadorHitsMisses.addMiss();
-        int marcoDisponible = memoriaFisica.obtenerMarcoLibre();
-
-        if (marcoDisponible == -1) {
-            int[] marcoASwap = memoriaFisica.realizarSwap(pagina, tipoOperacion);
-            actualizarTablasParaSwap(pagina, marcoASwap);
-        } else {
-            cargarPaginaEnMarcoDisponible(pagina, tipoOperacion, marcoDisponible);
-        }
-    }
-
-    private void actualizarTablasParaSwap(int pagina, int[] marcoASwap) {
-        tablaIntercambio.asignarPagina(marcoASwap[1], marcoASwap[1]);
-        tablaIntercambio.asignarPagina(pagina, -1);
-
-        tablaPrincipal.asignarPagina(pagina, marcoASwap[0]);
-        tablaPrincipal.asignarPagina(marcoASwap[1], -1);
-
-        memoriaFisica.consultarMarco(marcoASwap[0]);
-    }
-
-    private void cargarPaginaEnMarcoDisponible(int pagina, int tipoOperacion, int marcoDisponible) {
-        memoriaFisica.asignarMarco(marcoDisponible, pagina, tipoOperacion);
-        tablaPrincipal.asignarPagina(pagina, marcoDisponible);
-        tablaIntercambio.asignarPagina(pagina, -1);
-
-        memoriaFisica.consultarMarco(marcoDisponible);
-    }
-
-    private void pausarEjecucion() {
-        try {
-            Thread.sleep(1);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            hiloBitR.detenerHilo();  // Detiene el hilo de bits de referencia
+        } catch (IOException e) {
+            System.out.println("Error al leer el archivo, inténtalo de nuevo.");
+        } catch (InterruptedException ex) {
+            System.out.println("No se pudo detener el HiloRAM.");
         }
     }
 }
