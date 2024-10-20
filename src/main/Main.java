@@ -1,11 +1,6 @@
 package main;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.util.InputMismatchException;
 import java.util.Scanner;
 
@@ -49,6 +44,12 @@ public class Main {
                     case "2":
                         calcularDatos();
                         terminado = true;
+                        break;
+                    case "3":
+                        escribirImagenYEsconderMensaje();
+                        break;
+                    case "4":
+                        leerYDevolverMensaje();
                         break;
                     default:
                         System.out.println("Opción inválida, intenta de nuevo.");
@@ -222,4 +223,66 @@ public class Main {
         }
         System.out.println("\nProcesando, por favor espere...");
     }
+
+    public static void escribirImagenYEsconderMensaje() {
+        try {
+            BufferedReader lectorEntrada = new BufferedReader(new InputStreamReader(System.in));
+            
+            // Solicitar la ruta de la imagen
+            System.out.print("Especifique la ruta del archivo de imagen: ");
+            String rutaImagen = lectorEntrada.readLine();
+    
+            // Leer el mensaje utilizando el método combinado leerYDevolverMensaje
+            char[] mensaje = leerYDevolverMensaje();
+    
+            // Cargar la imagen desde la ruta proporcionada
+            Imagen imagen = new Imagen(rutaImagen);
+    
+            // Esconder el mensaje en la imagen
+            imagen.esconder(mensaje, mensaje.length);
+    
+            // Guardar la imagen modificada en la misma ruta de la imagen original
+            imagen.escribirImagen(rutaImagen);
+    
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+        private static int leerArchivoTexto(String rutaMensaje) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'leerArchivoTexto'");
+    }
+
+        // Método para leer el archivo de texto y devolver la longitud del mensaje
+        public static char[] leerYDevolverMensaje() {
+    char[] mensaje = null;
+    try {
+        BufferedReader lectorEntrada = new BufferedReader(new InputStreamReader(System.in));
+        
+        // Solicitar la ruta del archivo de texto desde la consola
+        System.out.print("Especifique la ruta del archivo de texto con el mensaje: ");
+        String rutaArchivo = lectorEntrada.readLine();
+
+        // Leer la longitud del archivo
+        int longitud = 0;
+        BufferedReader lector = new BufferedReader(new FileReader(rutaArchivo));
+        while (lector.read() != -1) {
+            longitud++;
+        }
+        lector.close();
+
+        // Leer el contenido del archivo y almacenarlo en un arreglo de chars
+        lector = new BufferedReader(new FileReader(rutaArchivo));
+        mensaje = new char[longitud];
+        lector.read(mensaje);
+        lector.close();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+    return mensaje;
+}
+
+        
 }
